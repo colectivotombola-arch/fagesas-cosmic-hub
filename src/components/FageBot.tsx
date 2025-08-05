@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, X, Send, Bot, User, Sparkles, Clock, Star } from "lucide-react";
+import { MessageCircle, X, Send, Bot, User, Sparkles, Clock, Star, Zap } from "lucide-react";
+import { FagesasAPI } from "@/services/api";
 
 interface Message {
   content: string;
@@ -22,7 +23,7 @@ export const FageBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
-      content: "¡Hola! 👋 Soy FageBot, tu asistente inteligente del ecosistema Fagesas.\n\n¿En qué puedo ayudarte hoy? Puedo guiarte por todos nuestros servicios:",
+      content: "¡Hola! 👋 Soy FageBot, tu asistente inteligente del ecosistema Fagesas.\n\n🚀 **Comandos disponibles:**\n• `eventos` - Ver eventos deportivos en vivo\n• `apostar [usuario] [evento] [monto]` - Realizar apuestas\n• `recargar [usuario] [monto]` - Recargar saldo\n• `usuarios` - Ver usuarios y saldos\n• `resultado [evento] [apuesta] [monto]` - Verificar resultados\n• `ayuda` - Ver todos los comandos\n\n¿Qué te gustaría hacer hoy? 🌟",
       sender: "bot",
       timestamp: new Date(),
       type: "welcome",
@@ -34,10 +35,12 @@ export const FageBot = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const quickActions: QuickAction[] = [
-    { label: "🎟 Ver Rifas", icon: "🎟", action: () => handleQuickAction("Quiero ver las rifas disponibles") },
-    { label: "🎰 Ir al Casino", icon: "🎰", action: () => handleQuickAction("Llévame al casino") },
-    { label: "📺 Ver Streams", icon: "📺", action: () => handleQuickAction("Quiero ver streams en vivo") },
-    { label: "💰 Mi Wallet", icon: "💰", action: () => handleQuickAction("Revisar mi wallet") },
+    { label: "🎯 Ver Eventos", icon: "🎯", action: () => handleQuickAction("eventos") },
+    { label: "👥 Ver Usuarios", icon: "👥", action: () => handleQuickAction("usuarios") },
+    { label: "🎰 Apostar", icon: "🎰", action: () => handleQuickAction("apostar carlos123 Barcelona 20") },
+    { label: "💰 Recargar", icon: "💰", action: () => handleQuickAction("recargar carlos123 100") },
+    { label: "🏆 Ver Resultado", icon: "🏆", action: () => handleQuickAction("resultado Barcelona Real 20") },
+    { label: "❓ Ayuda", icon: "❓", action: () => handleQuickAction("ayuda") },
   ];
 
   const scrollToBottom = () => {
@@ -54,12 +57,109 @@ export const FageBot = () => {
     setShowSuggestions(false);
   };
 
-  const getBotResponse = (userMessage: string): string => {
+  const getBotResponse = async (userMessage: string): Promise<string> => {
     const text = userMessage.toLowerCase();
     
-    // Respuestas más avanzadas y contextuales
+    // Comandos de API en vivo
+    if (text.startsWith("eventos") || text.includes("ver eventos")) {
+      try {
+        const events = await FagesasAPI.fetchEvents();
+        let response = "🎯 **Eventos Deportivos en Vivo:**\n\n";
+        events.slice(0, 3).forEach(event => {
+          response += `⚽ **${event.evento}**\n`;
+          response += `🕐 ${event.hora}\n`;
+          response += `📊 Cuotas: ${Object.entries(event.cuotas).map(([k,v]) => `${k}(${v})`).join(', ')}\n\n`;
+        });
+        response += "¿Te interesa apostar en algún evento? Escribe 'apostar [usuario] [evento] [monto]'";
+        return response;
+      } catch (error) {
+        return "❌ No pude cargar los eventos en este momento. La API puede no estar disponible.";
+      }
+    }
+
+    if (text.startsWith("apostar ")) {
+      const parts = text.split(" ");
+      if (parts.length >= 4) {
+        const [, usuario, evento, monto] = parts;
+        try {
+          const result = await FagesasAPI.placeBet({
+            usuario,
+            evento,
+            monto: parseFloat(monto)
+          });
+          
+          if (result.status === 'ok') {
+            return `✅ **Apuesta registrada exitosamente!**\n\n💰 Monto: ${monto} FGC\n🎯 Evento: ${evento}\n💳 Saldo restante: ${result.saldo_restante || 'Consulta tu wallet'}\n\n¡Buena suerte! 🍀`;
+          } else {
+            return `❌ **Error en la apuesta:**\n${result.message}\n\nFormato correcto: apostar [usuario] [evento] [monto]`;
+          }
+        } catch (error) {
+          return "❌ No pude procesar la apuesta. Verifica la conexión con la API.";
+        }
+      }
+      return "📝 **Formato incorrecto.** Usa: apostar [usuario] [evento] [monto]\nEjemplo: apostar carlos123 Barcelona 25";
+    }
+
+    if (text.startsWith("recargar ")) {
+      const parts = text.split(" ");
+      if (parts.length >= 3) {
+        const [, usuario, monto] = parts;
+        try {
+          const result = await FagesasAPI.rechargeBalance({
+            usuario,
+            monto: parseFloat(monto)
+          });
+          
+          if (result.status === 'ok') {
+            return `💰 **Recarga exitosa!**\n\n👤 Usuario: ${usuario}\n💵 Monto recargado: ${monto} FGC\n🏦 Nuevo saldo: ${result.nuevo_saldo || 'Actualizado'}\n\n¡Ya puedes seguir apostando! 🎰`;
+          } else {
+            return `❌ **Error en la recarga:**\n${result.message}`;
+          }
+        } catch (error) {
+          return "❌ No pude procesar la recarga. Verifica la conexión con la API.";
+        }
+      }
+      return "📝 **Formato incorrecto.** Usa: recargar [usuario] [monto]\nEjemplo: recargar carlos123 100";
+    }
+
+    if (text.startsWith("usuarios") || text.includes("ver usuarios")) {
+      try {
+        const users = await FagesasAPI.fetchUsers();
+        let response = "👥 **Usuarios Registrados:**\n\n";
+        users.forEach(user => {
+          response += `👤 **${user.nombre}** (@${user.usuario})\n`;
+          response += `💰 Saldo: ${user.saldo} FGC\n`;
+          response += `👥 Referidos: ${user.referidos}\n\n`;
+        });
+        return response;
+      } catch (error) {
+        return "❌ No pude cargar los usuarios en este momento.";
+      }
+    }
+
+    if (text.startsWith("resultado ")) {
+      const parts = text.split(" ");
+      if (parts.length >= 4) {
+        const [, evento, apuesta, monto] = parts;
+        try {
+          const result = await FagesasAPI.checkResult(evento, apuesta, parseFloat(monto));
+          
+          if (result.status === 'ok') {
+            const isWinner = result.ganancia && result.ganancia > 0;
+            return `${isWinner ? '🏆' : '😔'} **${result.message}**\n\n🎯 Evento: ${evento}\n🎲 Tu apuesta: ${apuesta}\n💰 Monto apostado: ${monto} FGC\n${isWinner ? `🎉 Ganancia: ${result.ganancia} FGC` : '💔 Sin ganancia esta vez'}\n\n${isWinner ? '¡Felicitaciones!' : '¡Mejor suerte la próxima!'}`;
+          } else {
+            return `❌ **Error al verificar resultado:**\n${result.message}`;
+          }
+        } catch (error) {
+          return "❌ No pude verificar el resultado. API no disponible.";
+        }
+      }
+      return "📝 **Formato incorrecto.** Usa: resultado [evento] [apuesta] [monto]\nEjemplo: resultado Barcelona Real 25";
+    }
+    
+    // Respuestas contextuales originales mejoradas
     if (text.includes("hola") || text.includes("hello") || text.includes("hi")) {
-      return "¡Hola! 👋 ¡Qué gusto verte por aquí! Soy FageBot, tu asistente personal del ecosistema Fagesas.\n\n¿Qué te gustaría hacer hoy? Puedo ayudarte a navegar por todas nuestras plataformas o responder cualquier pregunta que tengas. 🌟";
+      return "¡Hola! 👋 ¡Qué gusto verte por aquí! Soy FageBot, tu asistente inteligente del ecosistema Fagesas.\n\n🚀 **Comandos disponibles:**\n• `eventos` - Ver eventos deportivos\n• `apostar [usuario] [evento] [monto]` - Realizar apuesta\n• `recargar [usuario] [monto]` - Recargar saldo\n• `usuarios` - Ver usuarios registrados\n• `resultado [evento] [apuesta] [monto]` - Verificar resultado\n\n¿Qué te gustaría hacer? 🌟";
     }
     
     if (text.includes("rifa") || text.includes("tómbola") || text.includes("tombola")) {
@@ -67,45 +167,29 @@ export const FageBot = () => {
     }
     
     if (text.includes("casino") || text.includes("apuesta") || text.includes("deporte")) {
-      return "🎰 ¡FageCasino te está esperando! Aquí encontrarás:\n\n• Apuestas deportivas en tiempo real ⚽\n• Las mejores cuotas del mercado 📈\n• Eventos de fútbol, tenis, UFC y más 🥊\n• Sistema de apuestas seguro y confiable 🛡️\n\n¿Quieres ver los eventos deportivos en vivo?";
-    }
-    
-    if (text.includes("stream") || text.includes("tv") || text.includes("video") || text.includes("vivo")) {
-      return "📺 ¡FageStream tiene contenido increíble para ti!\n\n• Deportes en vivo 24/7 ⚽\n• Entretenimiento exclusivo 🎬\n• Streams de alta calidad 4K 📱\n• Chat interactivo con la comunidad 💬\n\n¿Te gustaría explorar los streams disponibles?";
+      return "🎰 ¡FageCasino te está esperando! Aquí encontrarás:\n\n• Apuestas deportivas en tiempo real ⚽\n• Las mejores cuotas del mercado 📈\n• Eventos de fútbol, tenis, UFC y más 🥊\n• Sistema de apuestas seguro y confiable 🛡️\n\nEscribe `eventos` para ver las opciones disponibles o `apostar [usuario] [evento] [monto]` para apostar directamente.";
     }
     
     if (text.includes("wallet") || text.includes("cripto") || text.includes("fagecoin") || text.includes("dinero")) {
-      return "💰 ¡FageWallet es tu puerta al futuro financiero!\n\n• Gestiona tus FageCoins 🪙\n• Intercambia criptomonedas 🔄\n• Pagos seguros y rápidos ⚡\n• Historial completo de transacciones 📊\n\n¿Quieres revisar tu balance actual?";
+      return "💰 ¡FageWallet es tu puerta al futuro financiero!\n\n• Gestiona tus FageCoins 🪙\n• Intercambia criptomonedas 🔄\n• Pagos seguros y rápidos ⚡\n• Historial completo de transacciones 📊\n\nEscribe `recargar [usuario] [monto]` para recargar saldo o `usuarios` para ver balances.";
     }
     
-    if (text.includes("ayuda") || text.includes("help") || text.includes("información")) {
-      return "🤖 ¡Estoy aquí para ayudarte! Estas son mis especialidades:\n\n🎟 **Colectivo Tómbola** - Rifas y sorteos exclusivos\n🎰 **FageCasino** - Apuestas deportivas premium\n📺 **FageStream** - Entretenimiento y deportes en vivo\n💰 **FageWallet** - Tu monedero digital avanzado\n\n¿Hay algo específico que te interese explorar?";
-    }
-    
-    if (text.includes("gracias") || text.includes("thanks")) {
-      return "¡De nada! 😊 Es un placer ayudarte. Recuerda que estoy aquí 24/7 para cualquier cosa que necesites en el ecosistema Fagesas.\n\n¿Hay algo más en lo que pueda asistirte hoy?";
-    }
-    
-    if (text.includes("precio") || text.includes("costo") || text.includes("cuánto")) {
-      return "💵 En Fagesas manejamos diferentes opciones:\n\n• Rifas desde $10 FGC 🎟️\n• Apuestas mínimas desde $5 FGC 🎰\n• Streams gratuitos y premium 📺\n• Transacciones sin comisión 💰\n\n¿Te interesa algún servicio en particular?";
-    }
-    
-    if (text.includes("seguro") || text.includes("confiable") || text.includes("seguridad")) {
-      return "🔒 ¡La seguridad es nuestra prioridad #1!\n\n• Encriptación de nivel bancario 🛡️\n• Auditorías regulares de seguridad ✅\n• Soporte 24/7 especializado 👨‍💻\n• Sistema anti-fraude avanzado 🚫\n\nTu dinero y datos están completamente protegidos.";
+    if (text.includes("ayuda") || text.includes("help") || text.includes("comandos")) {
+      return "🤖 **Guía Completa de FageBot:**\n\n🎯 **Comandos de Apuestas:**\n• `eventos` - Lista eventos en vivo\n• `apostar carlos123 Barcelona 25` - Apuesta 25 FGC\n• `resultado Barcelona Real 25` - Verifica resultado\n\n💰 **Comandos de Wallet:**\n• `usuarios` - Ver usuarios y saldos\n• `recargar carlos123 100` - Recarga 100 FGC\n\n🎟 **Otras funciones:**\n• Preguntas sobre rifas, casino, streams\n• Información de seguridad y precios\n\n¿En qué puedo ayudarte específicamente?";
     }
     
     // Respuestas más inteligentes por defecto
     const responses = [
-      "🌟 Interesante pregunta. Como experto en Fagesas, te recomiendo explorar nuestros módulos principales. ¿Hay alguno que te llame la atención?",
-      "🚀 ¡Excelente! Estás en el lugar correcto para vivir la experiencia Fagesas completa. ¿Por dónde te gustaría empezar?",
-      "💡 Te entiendo perfectamente. Fagesas tiene exactamente lo que buscas. ¿Quieres que te guíe paso a paso?",
-      "⭐ ¡Genial! Me encanta ayudar a los usuarios de Fagesas. Cuéntame más sobre lo que necesitas.",
+      "🌟 Interesante pregunta. Puedo ayudarte con comandos como `eventos`, `apostar`, `recargar` o `usuarios`. ¿Qué te gustaría hacer?",
+      "🚀 ¡Perfecto! Estás en Fagesas, donde todo es posible. Escribe `ayuda` para ver todos mis comandos disponibles.",
+      "💡 Te entiendo perfectamente. Fagesas tiene exactamente lo que buscas. ¿Quieres ver `eventos` deportivos o revisar `usuarios`?",
+      "⭐ ¡Genial! Me encanta ayudar. Puedo ejecutar apuestas, recargas y más. Escribe `comandos` para ver todas las opciones.",
     ];
     
     return responses[Math.floor(Math.random() * responses.length)];
   };
 
-  const sendMessage = (customMessage?: string) => {
+  const sendMessage = async (customMessage?: string) => {
     const messageToSend = customMessage || inputValue;
     if (!messageToSend.trim()) return;
 
@@ -120,17 +204,32 @@ export const FageBot = () => {
     setIsTyping(true);
     setShowSuggestions(false);
 
-    // Simulate more realistic bot thinking with variable delay
-    const thinkingTime = Math.random() * 1000 + 800; // 800-1800ms
-    setTimeout(() => {
-      const botResponse: Message = {
-        content: getBotResponse(messageToSend),
-        sender: "bot",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, botResponse]);
-      setIsTyping(false);
-    }, thinkingTime);
+    try {
+      // Get bot response (now async for API calls)
+      const botResponseContent = await getBotResponse(messageToSend);
+      
+      // Realistic thinking delay
+      const thinkingTime = Math.random() * 1000 + 500; 
+      setTimeout(() => {
+        const botResponse: Message = {
+          content: botResponseContent,
+          sender: "bot",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, botResponse]);
+        setIsTyping(false);
+      }, thinkingTime);
+    } catch (error) {
+      setTimeout(() => {
+        const errorResponse: Message = {
+          content: "❌ Lo siento, tuve un problema procesando tu mensaje. Por favor intenta de nuevo.",
+          sender: "bot",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorResponse]);
+        setIsTyping(false);
+      }, 1000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -243,7 +342,7 @@ export const FageBot = () => {
             {/* Quick Actions */}
             {showSuggestions && messages.length === 1 && (
               <div className="space-y-3 animate-fade-in">
-                <p className="text-xs text-muted-foreground text-center">Acciones rápidas:</p>
+                <p className="text-xs text-muted-foreground text-center">⚡ Comandos rápidos:</p>
                 <div className="grid grid-cols-2 gap-2">
                   {quickActions.map((action, index) => (
                     <Button
@@ -251,12 +350,18 @@ export const FageBot = () => {
                       variant="outline"
                       size="sm"
                       onClick={action.action}
-                      className="text-left justify-start h-auto p-3 border-fagesas-border hover:bg-fagesas-card hover:border-primary transition-all duration-200"
+                      className="text-left justify-start h-auto p-2 border-fagesas-border hover:bg-fagesas-card hover:border-primary transition-all duration-200"
                     >
-                      <span className="mr-2">{action.icon}</span>
+                      <span className="mr-1 text-sm">{action.icon}</span>
                       <span className="text-xs">{action.label}</span>
                     </Button>
                   ))}
+                </div>
+                <div className="text-center">
+                  <Badge variant="outline" className="text-xs">
+                    <Zap className="h-3 w-3 mr-1" />
+                    API en vivo conectada
+                  </Badge>
                 </div>
               </div>
             )}
