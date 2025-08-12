@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>FAGESAS Cosmic Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{--bg:#0b0f19;--panel:#121826;--soft:#1c2333;--text:#e8eefc;--muted:#a7b0c5;--acc:#55b3ff}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#0b0f19,#0f1526 60%,#0b0f19);color:var(--text)}
+    .wrap{max-width:1100px;margin:auto;padding:32px}
+    header{display:flex;align-items:center;gap:16px;margin:10px 0 28px}
+    .logo{width:44px;height:44px;border-radius:12px;background:radial-gradient(60% 60% at 30% 30%, #6cf, #45a, #012);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    h1{font-size:28px;margin:0} .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+    .card{background:var(--panel);border:1px solid #22324a;border-radius:16px;padding:18px}
+    .card h3{margin:0 0 8px;font-size:18px}
+    .card p{margin:0 0 12px;color:var(--muted);line-height:1.45}
+    .row{display:flex;flex-wrap:wrap;gap:10px}
+    .btn{display:inline-block;background:var(--acc);color:#00152a;text-decoration:none;padding:10px 14px;border-radius:10px;font-weight:600}
+    .btn.ghost{background:transparent;border:1px solid #2a3955;color:var(--text)}
+    footer{margin:28px 0 8px;color:var(--muted);font-size:14px;text-align:center}
+    code, .tag{background:var(--soft);border:1px solid #23324a;border-radius:8px;padding:2px 8px}
+    .ok{color:#7cffad}.warn{color:#ffd36c}.bad{color:#ff7c7c}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo"></div>
+      <div>
+        <h1>FAGESAS Cosmic Hub</h1>
+        <div class="muted">Centro de módulos, demos, utilidades y guía de despliegue.</div>
+      </div>
+    </header>
+
+    <div class="grid" style="margin-bottom:16px">
+      <section class="card">
+        <h3>Estado rápido</h3>
+        <p><strong>FageBoot</strong> (scaffolder): <span class="warn">pendiente</span> — lo agregamos como CLI para crear componentes/páginas.</p>
+        <p><strong>Landing</strong>: <span class="ok">online</span> (HTML puro, sin build)</p>
+        <div class="row">
+          <a class="btn" href="#instrucciones">Cómo desarrollar</a>
+          <a class="btn ghost" href="#roadmap">Roadmap</a>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Módulos del Hub</h3>
+        <p>Enlaza aquí lo que ya tengas vivo (demos, paneles, docs).</p>
+        <ul class="muted" style="padding-left:18px;margin:8px 0">
+          <li><span class="tag">Demo A</span></li>
+          <li><span class="tag">Demo B</span></li>
+          <li><span class="tag">API / Docs</span></li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h3>Utilidades</h3>
+        <p>Checklist de calidad para proyectos FAGESAS.</p>
+        <ul class="muted" style="padding-left:18px;margin:8px 0">
+          <li><span class="tag">.editorconfig</span> + <span class="tag">Prettier</span> + <span class="tag">ESLint</span></li>
+          <li><span class="tag">CI: Build + Pages</span></li>
+          <li><span class="tag">404 → index</span> (SPA fallback)</li>
+        </ul>
+      </section>
+    </div>
+
+    <section class="card" id="instrucciones">
+      <h3>Desarrollar & Publicar</h3>
+      <p class="muted">Sin toolchain: edita <code>index.html</code> y haz commit a <code>main</code>. Para Vite/React, mira el roadmap.</p>
+      <ol class="muted">
+        <li>Editar: <code>index.html</code></li>
+        <li>Commit a <code>main</code></li>
+        <li>Publicar en <strong>Settings → Pages</strong>: Source = <em>Deploy from a branch</em>, Branch = <code>main</code>, carpeta = <code>/(root)</code></li>
+      </ol>
+    </section>
+
+    <section class="card" id="roadmap">
+      <h3>Roadmap corto</h3>
+      <ol class="muted">
+        <li><strong>FageBoot CLI</strong> (Node): <code>npx fageboot component Boton</code>, <code>npx fageboot page Inicio</code></li>
+        <li>Pasar a <strong>Vite + React</strong> (PWA opcional) y CI para <strong>gh-pages</strong></li>
+        <li>Plantillas: Issues / PR, SECURITY, CONTRIBUTING</li>
+      </ol>
+    </section>
+
+    <footer>© FAGESAS · Cosmic Hub</footer>
+  </div>
+</body>
+</html>
