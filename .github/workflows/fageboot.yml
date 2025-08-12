@@ -1,11 +1,69 @@
 name: FageBoot
 
 on:
-  workflow_dispatch:  # <-- esto habilita el botón "Ejecutar flujo de trabajo"
+  workflow_dispatch:
+    inputs:
+      tipo:
+        description: "Tipo de módulo"
+        required: true
+        type: choice
+        options:
+          - pagina
+          - componente
+        default: pagina
+      nombre:
+        description: "Nombre visible (sin tildes ni espacios)"
+        required: true
+      descripcion:
+        description: "Descripción (opcional)"
+        required: false
+
+permissions:
+  contents: write
 
 jobs:
-  ping:
+  create:
     runs-on: ubuntu-latest
     steps:
-      - name: Hola
-        run: echo "FageBoot listo"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Normaliza nombre
+        id: n
+        run: |
+          RAW="${{ github.event.inputs.nombre }}"
+          # bajar a minúsculas, quitar acentos, espacios -> guiones
+          SLUG=$(echo "$RAW" \
+            | iconv -f utf8 -t ascii//TRANSLIT \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/[[:space:]]\+/-/g' \
+            | sed 's/[^a-z0-9-]//g')
+          echo "slug=$SLUG" >> $GITHUB_OUTPUT
+
+      - name: Crear página
+        run: |
+          mkdir -p public/mod/${{ steps.n.outputs.slug }}
+          cat > public/mod/${{ steps.n.outputs.slug }}/index.html <<'HTML'
+          <!doctype html>
+          <meta charset="utf-8">
+          <title>${{ github.event.inputs.nombre }} – FAGESAS</title>
+          <h1>${{ github.event.inputs.nombre }}</h1>
+          <p>${{ github.event.inputs.descripcion }}</p>
+          <p><a href="../../">← Volver</a></p>
+          HTML
+
+      - name: Enlazar en index.html
+        run: |
+          LINK='<li><a href="/fagesas-cosmic-hub/mod/${{ steps.n.outputs.slug }}/">${{ github.event.inputs.nombre }}</a></li>'
+          # si no existe <ul id="mods"> lo creamos al final del archivo
+          if ! grep -q 'id="mods"' index.html; then
+            printf '\n<ul id="mods">\n</ul>\n' >> index.html
+          fi
+          # añade el link si no existe ya
+          grep -Fq "$LINK" index.html || sed -i '/id="mods"/a '"$LINK" index.html
+
+      - name: Commit & push
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "fageboot: crear ${{ steps.n.outputs.slug }}"
+          branch: main
